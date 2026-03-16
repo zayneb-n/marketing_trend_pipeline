@@ -1,0 +1,4 @@
+pytrends
+newsapi-python
+psycopg2-binary
+python-dotenv

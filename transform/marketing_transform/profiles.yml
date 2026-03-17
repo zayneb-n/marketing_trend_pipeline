@@ -1,0 +1,12 @@
+marketing_transform:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: postgres
+      port: 5432
+      dbname: marketing_pipeline
+      user: pipeline_user
+      password: "pipeline_pass_2026"   # hardcode temporarily
+      schema: public
+      threads: 4

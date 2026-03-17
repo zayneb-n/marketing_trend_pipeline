@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: stg_trends
+    columns:
+      - name: keyword
+        tests:
+          - not_null
+      - name: date
+        tests:
+          - not_null
+      - name: interest
+        tests:
+          - not_null
+
+  - name: stg_articles
+    columns:
+      - name: keyword
+        tests:
+          - not_null
+      - name: url
+        tests:
+          - not_null
+          - unique
+      - name: title
+        tests:
+          - not_null

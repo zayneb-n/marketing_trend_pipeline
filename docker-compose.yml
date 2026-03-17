@@ -94,6 +94,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+# ── dbt ───────────────────────────────
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-postgres:1.7.0
+    container_name: pipeline_dbt
+    volumes:
+      - ./transform/marketing_transform:/usr/app/dbt
+    environment:
+      DBT_PROFILES_DIR: /usr/app/dbt
+    depends_on:
+      postgres:
+        condition: service_healthy
+    working_dir: /usr/app/dbt
+    entrypoint: ["tail", "-f", "/dev/null"]  # keeps container alive
+
 volumes:
   postgres_data:    # Postgres data managed by Docker (inside WSL)
   airflow_logs:     # Airflow task logs

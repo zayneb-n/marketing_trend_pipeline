@@ -1,4 +1,4 @@
---  Runs automatically on first Postgres start
+---script that runs automatically on first Postgres start to init the database with the necessary tables for raw data storage.---
 
 CREATE TABLE IF NOT EXISTS raw_trends (
     id           SERIAL PRIMARY KEY,

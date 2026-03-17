@@ -5,11 +5,11 @@ from datetime import datetime, timedelta
 from newsapi import NewsApiClient
 from dotenv import load_dotenv
 
-# ── Load environment variables from .env ──
+#load variables 
 load_dotenv()
 
-# ── Config ────────────────────────────────
-KEYWORDS = os.getenv("TREND_KEYWORDS", "AI marketing").split(",")
+#config key words we want to track
+KEYWORDS = os.getenv("NEWS_KEYWORDS", "AI marketing").split(",")
 KEYWORDS = [k.strip() for k in KEYWORDS]
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
@@ -24,16 +24,14 @@ DB_CONFIG = {
 
 RAW_DIR = os.getenv("RAW_DIR", "./data/raw/news")
 
-# NewsAPI free tier only allows articles from the past 30 days
+#the current NewsAPI free tier only allows articles from the past 30 days
 DAYS_BACK = 7
 
 
-# ── Step 1: Pull articles from NewsAPI ────
+# 1: Pull a list of article dicts for each key word from the past given days
+
 def fetch_news(keyword: str) -> list[dict]:
-    """
-    Returns a list of article dicts for the given keyword.
-    Fetches articles from the past DAYS_BACK days.
-    """
+
     if not NEWS_API_KEY:
         raise ValueError("NEWS_API_KEY is missing from your .env file")
 
@@ -73,12 +71,9 @@ def fetch_news(keyword: str) -> list[dict]:
     return records
 
 
-# ── Step 2: Save raw JSON to disk ─────────
+# 2: Save raw JSON to disk and returns the file path
 def save_raw_json(keyword: str, records: list[dict]) -> str:
-    """
-    Saves raw articles to data/raw/news/YYYY-MM-DD/news_<keyword>.json
-    Returns the file path.
-    """
+
     today = datetime.utcnow().strftime("%Y-%m-%d")
     folder = os.path.join(RAW_DIR, today)
     os.makedirs(folder, exist_ok=True)
@@ -100,12 +95,9 @@ def save_raw_json(keyword: str, records: list[dict]) -> str:
     return filepath
 
 
-# ── Step 3: Insert into PostgreSQL ────────
+# 3: Insert into PostgreSQL raw_articles table with duplicate URL handling (based on conflict do nothing)
 def load_to_postgres(keyword: str, records: list[dict]):
-    """
-    Inserts articles into raw_articles table.
-    Skips duplicates based on url using ON CONFLICT DO NOTHING.
-    """
+
     if not records:
         return
 
@@ -163,7 +155,7 @@ def load_to_postgres(keyword: str, records: list[dict]):
     print(f"  Inserted {inserted} rows into raw_articles")
 
 
-# ── Main ──────────────────────────────────
+# Main 
 def run():
     print(f"\n{'='*50}")
     print(f"News extract — {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")

@@ -6,11 +6,10 @@ from pytrends.request import TrendReq
 from dotenv import load_dotenv
 import time
 
-
-# ── Load environment variables from .env ──
+# Load environment variables from .env file
 load_dotenv()
 
-# ── Config ────────────────────────────────
+# Config 
 KEYWORDS = os.getenv("TREND_KEYWORDS", "AI marketing").split(",")
 KEYWORDS = [k.strip() for k in KEYWORDS]
 
@@ -25,7 +24,7 @@ DB_CONFIG = {
 RAW_DIR = os.getenv("RAW_DIR", "./data/raw/trends")
 
 
-# ── Step 1: Pull data from Google Trends ──
+# 1: Pull data from Google Trends unofficial API and return list of dicts with date and interest
 def fetch_trends(keyword: str) -> list[dict]:
     print(f"  Fetching trends for: '{keyword}'")
     
@@ -36,13 +35,13 @@ def fetch_trends(keyword: str) -> list[dict]:
         retries=3,               # retry 3 times
         backoff_factor=0.5       # wait between retries
     ) 
-    # Wait before hitting Google — mimics human behavior
+    # Wait before hitting Google (mimics human behavior)
     time.sleep(5)
     
     pytrends.build_payload([keyword], timeframe="today 3-m")
     
     # Another small pause before fetching
-    time.sleep(3)
+    time.sleep(15)
 
     df = pytrends.interest_over_time()
 
@@ -65,12 +64,9 @@ def fetch_trends(keyword: str) -> list[dict]:
     return records
 
 
-# ── Step 2: Save raw JSON to disk ─────────
+# 2: Save raw JSON to disk
 def save_raw_json(keyword: str, records: list[dict]) -> str:
-    """
-    Saves raw data to data/raw/trends/YYYY-MM-DD/trends_<keyword>.json
-    Returns the file path.
-    """
+
     today = datetime.utcnow().strftime("%Y-%m-%d")
     folder = os.path.join(RAW_DIR, today)
     os.makedirs(folder, exist_ok=True)
@@ -92,7 +88,7 @@ def save_raw_json(keyword: str, records: list[dict]) -> str:
     return filepath
 
 
-# ── Step 3: Insert into PostgreSQL ────────
+# 3: Insert into PostgreSQL
 def load_to_postgres(keyword: str, records: list[dict]):
     """
     Inserts records into raw_trends table.
@@ -122,7 +118,7 @@ def load_to_postgres(keyword: str, records: list[dict]):
     print(f"  Inserted {inserted} rows into raw_trends")
 
 
-# ── Main ──────────────────────────────────
+# Main
 def run():
     print(f"\n{'='*50}")
     print(f"Trends extract — {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
@@ -136,6 +132,7 @@ def run():
             save_raw_json(keyword, records)
             load_to_postgres(keyword, records)
         print()
+        time.sleep(30)  # Wait before next keyword to avoid hitting Google too fast
 
     print("Done.\n")
 

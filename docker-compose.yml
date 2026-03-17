@@ -1,6 +1,6 @@
 # common reusable block for airflow services
 x-airflow-common: &airflow-common
-  image: apache/airflow:2.8.1
+  build: . #added with the dockerfile in the root of the project
   env_file: .env
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor

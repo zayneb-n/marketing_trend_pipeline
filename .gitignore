@@ -6,6 +6,7 @@ __pycache__/
 *.pyo
 venv/
 
-# dbt 
-transform/target/
-transform/dbt_packages/
+# dbt generated files
+transform/marketing_transform/target/
+transform/marketing_transform/logs/
+transform/marketing_transform/dbt_packages/

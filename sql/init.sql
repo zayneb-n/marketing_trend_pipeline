@@ -19,6 +19,21 @@ CREATE TABLE IF NOT EXISTS raw_articles (
     extracted_at TIMESTAMP   DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS tracked_keywords (
+    keyword     TEXT PRIMARY KEY,
+    added_by    TEXT DEFAULT 'admin',
+    added_at    TIMESTAMP DEFAULT NOW(),
+    active      BOOLEAN DEFAULT TRUE
+);
+
+-- New feat for UI consistency -- pre populate with current keywords so the table is not empty 
+INSERT INTO tracked_keywords (keyword) VALUES
+    ('AI marketing'),
+    ('content marketing'),
+    ('SEO'),
+    ('social commerce')
+ON CONFLICT DO NOTHING;
+
 -- Indexes for dbt query performance
 CREATE INDEX IF NOT EXISTS idx_raw_trends_keyword_date   ON raw_trends (keyword, date);
 CREATE INDEX IF NOT EXISTS idx_raw_articles_keyword_date ON raw_articles (keyword, published_at);

@@ -6,3 +6,4 @@ sources:
     tables:
       - name: raw_trends
       - name: raw_articles
+      - name: tracked_keywords 

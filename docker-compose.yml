@@ -106,7 +106,9 @@ services:
       postgres:
         condition: service_healthy
     working_dir: /usr/app/dbt
-    entrypoint: ["tail", "-f", "/dev/null"]  # keeps container alive
+    ports:
+      - "8081:8080"        # ← add this line
+    entrypoint: ["tail", "-f", "/dev/null"]
 
 volumes:
   postgres_data:    # Postgres data managed by Docker (inside WSL)

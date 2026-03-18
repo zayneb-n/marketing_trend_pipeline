@@ -4,7 +4,7 @@ x-airflow-common: &airflow-common
   env_file: .env
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/airflow_db
     AIRFLOW__CORE__FERNET_KEY: ""
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -76,19 +76,16 @@ services:
           --email admin@example.com
     restart: on-failure
 
-  # ── 5. Metabase ───────────────────────
+  # ── Metabase ───────────────────────
   metabase:
     image: metabase/metabase:latest
     container_name: pipeline_metabase
     ports:
-      - "3000:3000"                           
+      - "3000:3000"
+    volumes:
+      - metabase_data:/metabase-data
     environment:
-      MB_DB_TYPE: postgres
-      MB_DB_DBNAME: ${POSTGRES_DB}
-      MB_DB_PORT: 5432
-      MB_DB_USER: ${POSTGRES_USER}
-      MB_DB_PASS: ${POSTGRES_PASSWORD}
-      MB_DB_HOST: postgres
+      MB_DB_FILE: /metabase-data/metabase.db
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,3 +110,4 @@ services:
 volumes:
   postgres_data:    # Postgres data managed by Docker (inside WSL)
   airflow_logs:     # Airflow task logs
+  metabase_data:    # Metabase data (inside WSL)

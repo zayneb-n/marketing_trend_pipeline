@@ -37,3 +37,8 @@ ON CONFLICT DO NOTHING;
 -- Indexes for dbt query performance
 CREATE INDEX IF NOT EXISTS idx_raw_trends_keyword_date   ON raw_trends (keyword, date);
 CREATE INDEX IF NOT EXISTS idx_raw_articles_keyword_date ON raw_articles (keyword, published_at);
+
+
+-- Create separate databases : fix metabase too many tables 
+CREATE DATABASE airflow_db;
+CREATE DATABASE metabase_db;

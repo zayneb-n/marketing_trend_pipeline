@@ -10,8 +10,23 @@ import time
 load_dotenv()
 
 # Config 
-KEYWORDS = os.getenv("TREND_KEYWORDS", "AI marketing").split(",")
-KEYWORDS = [k.strip() for k in KEYWORDS]
+'''KEYWORDS = os.getenv("TREND_KEYWORDS", "AI marketing").split(",")
+KEYWORDS = [k.strip() for k in KEYWORDS]'''
+
+# reads from tracked_keywords table
+def get_active_keywords() -> list[str]:
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT keyword FROM tracked_keywords
+        WHERE active = TRUE
+        ORDER BY added_at
+    """)
+    keywords = [row[0] for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+    print(f"  Loaded {len(keywords)} active keywords from database")
+    return keywords
 
 DB_CONFIG = {
     "host":     os.getenv("POSTGRES_HOST", "localhost"),
@@ -120,11 +135,11 @@ def load_to_postgres(keyword: str, records: list[dict]):
 
 # Main
 def run():
+    KEYWORDS = get_active_keywords() 
     print(f"\n{'='*50}")
     print(f"Trends extract — {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
     print(f"Keywords: {KEYWORDS}")
     print(f"{'='*50}\n")
-
     for keyword in KEYWORDS:
         print(f"[{keyword}]")
         records = fetch_trends(keyword)

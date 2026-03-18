@@ -9,8 +9,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 #config key words we want to track
-KEYWORDS = os.getenv("NEWS_KEYWORDS", "AI marketing").split(",")
-KEYWORDS = [k.strip() for k in KEYWORDS]
+'''KEYWORDS = os.getenv("NEWS_KEYWORDS", "AI marketing").split(",")
+KEYWORDS = [k.strip() for k in KEYWORDS]'''
+
+def get_active_keywords() -> list[str]:
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT keyword FROM tracked_keywords
+        WHERE active = TRUE
+        ORDER BY added_at
+    """)
+    keywords = [row[0] for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+    print(f"  Loaded {len(keywords)} active keywords from database")
+    return keywords
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
@@ -157,6 +171,7 @@ def load_to_postgres(keyword: str, records: list[dict]):
 
 # Main 
 def run():
+    KEYWORDS = get_active_keywords() 
     print(f"\n{'='*50}")
     print(f"News extract — {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
     print(f"Keywords: {KEYWORDS}")

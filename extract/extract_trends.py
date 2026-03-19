@@ -5,6 +5,8 @@ from datetime import datetime
 from pytrends.request import TrendReq
 from dotenv import load_dotenv
 import time
+from typing import List, Dict
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,7 +16,7 @@ load_dotenv()
 KEYWORDS = [k.strip() for k in KEYWORDS]'''
 
 # reads from tracked_keywords table
-def get_active_keywords() -> list[str]:
+def get_active_keywords() -> List[str]:
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
     cur.execute("""
@@ -29,7 +31,7 @@ def get_active_keywords() -> list[str]:
     return keywords
 
 DB_CONFIG = {
-    "host":     os.getenv("POSTGRES_HOST", "localhost"),
+    "host":     os.getenv("POSTGRES_HOST", "postgres"),
     "port":     os.getenv("POSTGRES_PORT", 5432),
     "dbname":   os.getenv("POSTGRES_DB"),
     "user":     os.getenv("POSTGRES_USER"),
@@ -40,7 +42,7 @@ RAW_DIR = os.getenv("RAW_DIR", "./data/raw/trends")
 
 
 # 1: Pull data from Google Trends unofficial API and return list of dicts with date and interest
-def fetch_trends(keyword: str) -> list[dict]:
+def fetch_trends(keyword: str) -> List[Dict]:
     print(f"  Fetching trends for: '{keyword}'")
     
     pytrends = TrendReq(
@@ -80,7 +82,7 @@ def fetch_trends(keyword: str) -> list[dict]:
 
 
 # 2: Save raw JSON to disk
-def save_raw_json(keyword: str, records: list[dict]) -> str:
+def save_raw_json(keyword: str, records: List[Dict]) -> str:
 
     today = datetime.utcnow().strftime("%Y-%m-%d")
     folder = os.path.join(RAW_DIR, today)
@@ -104,7 +106,7 @@ def save_raw_json(keyword: str, records: list[dict]) -> str:
 
 
 # 3: Insert into PostgreSQL
-def load_to_postgres(keyword: str, records: list[dict]):
+def load_to_postgres(keyword: str, records: List[Dict]):
     """
     Inserts records into raw_trends table.
     Skips duplicates using ON CONFLICT DO NOTHING.

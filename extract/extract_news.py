@@ -4,6 +4,7 @@ import psycopg2
 from datetime import datetime, timedelta
 from newsapi import NewsApiClient
 from dotenv import load_dotenv
+from typing import List, Dict 
 
 #load variables 
 load_dotenv()
@@ -12,7 +13,7 @@ load_dotenv()
 '''KEYWORDS = os.getenv("NEWS_KEYWORDS", "AI marketing").split(",")
 KEYWORDS = [k.strip() for k in KEYWORDS]'''
 
-def get_active_keywords() -> list[str]:
+def get_active_keywords():
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
     cur.execute("""
@@ -29,7 +30,7 @@ def get_active_keywords() -> list[str]:
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 DB_CONFIG = {
-    "host":     os.getenv("POSTGRES_HOST", "localhost"),
+    "host":     os.getenv("POSTGRES_HOST", "postgres"),
     "port":     os.getenv("POSTGRES_PORT", 5432),
     "dbname":   os.getenv("POSTGRES_DB"),
     "user":     os.getenv("POSTGRES_USER"),
@@ -44,7 +45,7 @@ DAYS_BACK = 7
 
 # 1: Pull a list of article dicts for each key word from the past given days
 
-def fetch_news(keyword: str) -> list[dict]:
+def fetch_news(keyword: str) -> List[Dict]:
 
     if not NEWS_API_KEY:
         raise ValueError("NEWS_API_KEY is missing from your .env file")
@@ -86,7 +87,7 @@ def fetch_news(keyword: str) -> list[dict]:
 
 
 # 2: Save raw JSON to disk and returns the file path
-def save_raw_json(keyword: str, records: list[dict]) -> str:
+def save_raw_json(keyword: str, records: List[Dict]) -> str:
 
     today = datetime.utcnow().strftime("%Y-%m-%d")
     folder = os.path.join(RAW_DIR, today)
@@ -110,7 +111,7 @@ def save_raw_json(keyword: str, records: list[dict]) -> str:
 
 
 # 3: Insert into PostgreSQL raw_articles table with duplicate URL handling (based on conflict do nothing)
-def load_to_postgres(keyword: str, records: list[dict]):
+def load_to_postgres(keyword: str, records: List[Dict]):
 
     if not records:
         return

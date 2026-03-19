@@ -90,6 +90,8 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    mem_limit: 800m          # added to avoid potential memory issues with containers
+    
 
 # ── dbt ───────────────────────────────
   dbt:

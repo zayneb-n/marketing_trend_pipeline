@@ -39,7 +39,7 @@ def check_api_keys():
     print("API connectivity check")
     print("=" * 50)
 
-    # ── Check 1: NewsAPI ──────────────────
+    # Check 1: NewsAPI
     news_api_key = os.getenv("NEWS_API_KEY")
 
     if not news_api_key:
@@ -60,27 +60,9 @@ def check_api_keys():
     if response.status_code != 200:
         raise ValueError(f"NewsAPI returned unexpected status {response.status_code}: {response.text}")
 
-    print(f"  NewsAPI OK (status {response.status_code})")
+    print(f"NewsAPI OK (status {response.status_code})")
 
-    # ── Check 2: Google Trends ── DISABLED (rate limited by Google)
-    # try:
-    #     from pytrends.request import TrendReq
-    #     import time
-    #     time.sleep(3)
-    #     pytrends = TrendReq(hl="en-US", tz=0, timeout=(10, 25), retries=2, backoff_factor=0.5)
-    #     pytrends.build_payload(["marketing"], timeframe="today 1-m")
-    #     time.sleep(5)
-    #     df = pytrends.interest_over_time()
-    #     if df is None:
-    #         raise ValueError("Google Trends returned None — possible block or rate limit")
-    #     print(f"  Google Trends OK ({len(df)} data points returned in test)")
-    # except Exception as e:
-    #     raise ValueError(
-    #         f"Google Trends connectivity failed: {e}\n"
-    #         f"  → Google may be rate-limiting your IP. Wait 30 min and retry."
-    #     )
-
-    print("\n  ⚠️  Google Trends pre-check skipped — rate limited, extract_trends will handle retries")
+    print("\nGoogle Trends pre-check skipped — rate limited, extract_trends will handle retries")
     print("\nAll API checks passed — starting extraction\n")
 
 
@@ -108,23 +90,24 @@ def run_extract_news():
 
 def validate_raw_data():
     """
-    Task 4 — runs AFTER both extractions, BEFORE dbt.
-    Aborts if either table has no rows for today.
-    Catches silent API failures that returned 200 but inserted nothing.
+    Task 4 — runs AFTER extractions, BEFORE dbt.
+    Soft-warns if trends are missing.
+    Hard-fails only if news is missing.
+    This allows the pipeline to continue when Google Trends is rate-limited.
     """
     import psycopg2
 
     conn = psycopg2.connect(**DB_CONFIG)
-    cur  = conn.cursor()
+    cur = conn.cursor()
 
-    # ── Check raw_trends ─────────────────
+    # Check raw_trends
     cur.execute("""
         SELECT COUNT(*) FROM raw_trends
         WHERE extracted_at::date = CURRENT_DATE
     """)
     trends_count = cur.fetchone()[0]
 
-    # ── Check raw_articles ───────────────
+    # Check raw_articles
     cur.execute("""
         SELECT COUNT(*) FROM raw_articles
         WHERE extracted_at::date = CURRENT_DATE
@@ -134,12 +117,17 @@ def validate_raw_data():
     cur.close()
     conn.close()
 
+    # Soft warning only for trends
     if trends_count == 0:
-        raise ValueError("No trends data extracted today — aborting pipeline before dbt")
+        print("WARNING: No trends data today — Google may be rate-limiting. Continuing with news only.")
+    else:
+        print(f"Trends: {trends_count} rows")
+
+    # Hard fail only for news
     if news_count == 0:
         raise ValueError("No news data extracted today — aborting pipeline before dbt")
 
-    print(f"Validation passed: {trends_count} trend rows, {news_count} news rows extracted today")
+    print(f"News: {news_count} rows — proceeding to dbt")
 
 
 def notify_success(**context):
@@ -150,26 +138,26 @@ def notify_success(**context):
     execution_date = context["execution_date"]
     print(f"""
     Pipeline completed successfully
-    ─────────────────────────────────
+    --------------------------------
     Date:      {execution_date.strftime("%Y-%m-%d")}
     DAG:       marketing_trend_pipeline
     Schedule:  daily at 08:00 UTC
     Next run:  tomorrow at 08:00 UTC
-    ─────────────────────────────────
+    --------------------------------
     Full chain:
       check_api_keys
-        → extract_trends + extract_news (parallel)
-          → validate_raw_data
-            → dbt_run
-              → dbt_test
-                → notify_success
+        -> extract_trends + extract_news (parallel)
+          -> validate_raw_data
+            -> dbt_run
+              -> dbt_test
+                -> notify_success
     """)
 
 
-# ── DAG definition ────────────────────────
+# DAG definition
 with DAG(
     dag_id="marketing_trend_pipeline",
-    description="Daily extract → transform pipeline for marketing trends",
+    description="Daily extract -> transform pipeline for marketing trends",
     default_args=default_args,
     start_date=pendulum.today("UTC").add(days=-1),
     schedule="0 8 * * *",
@@ -199,18 +187,19 @@ with DAG(
     task_validate = PythonOperator(
         task_id="validate_raw_data",
         python_callable=validate_raw_data,
+        trigger_rule="all_done",
     )
 
     # Task 5: Run dbt models
     task_dbt_run = BashOperator(
-        task_id="dbt_run",
-        bash_command="cd /opt/airflow/transform/marketing_transform && dbt run --profiles-dir .",
+    task_id="dbt_run",
+    bash_command="cd /opt/airflow/transform/marketing_transform && mkdir -p /tmp/dbt-logs /tmp/dbt-target && dbt run --profiles-dir . --log-path /tmp/dbt-logs --target-path /tmp/dbt-target",
     )
 
-    # Task 6: Run dbt tests
+    # Task 6: Run dbt tests (changed because dbt failed before executing models because it could not write to its local log file inside the mounted project directory)
     task_dbt_test = BashOperator(
-        task_id="dbt_test",
-        bash_command="cd /opt/airflow/transform/marketing_transform && dbt test --profiles-dir .",
+    task_id="dbt_test",
+    bash_command="cd /opt/airflow/transform/marketing_transform && mkdir -p /tmp/dbt-logs /tmp/dbt-target && dbt test --profiles-dir . --log-path /tmp/dbt-logs --target-path /tmp/dbt-target",
     )
 
     # Task 7: Notify success
@@ -220,5 +209,12 @@ with DAG(
         provide_context=True,
     )
 
-    # ── Pipeline order ────────────────────
+    # Pipeline order
     task_check_apis >> [task_extract_trends, task_extract_news] >> task_validate >> task_dbt_run >> task_dbt_test >> task_notify
+
+
+# What we changed:
+# 1. validate_raw_data now warns if trends data is missing instead of failing the whole pipeline.
+# 2. validate_raw_data still fails if news data is missing, because news is the required source.
+# 3. trigger_rule="all_done" was added to validate_raw_data so it runs even if extract_trends fails.
+# 4. This makes the pipeline more resilient and allows dbt to continue in a news-only scenario.
